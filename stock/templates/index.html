@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Factor Stock Sentiment & Chart Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-8">
+    <div class="max-w-5xl mx-auto space-y-8">
+        
+        <!-- Header -->
+        <div>
+            <h1 class="text-3xl font-bold text-white">Stock Multi-Factor Analytics & Price Projection</h1>
+            <p class="text-slate-400 mt-2">FinBERT News Sentiment + Options Implied Volatility (IV) + Historical & Predicted Trendlines</p>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg space-y-4">
+            <label for="tickers" class="block font-medium text-slate-300">Enter Ticker Symbols (comma separated)</label>
+            <div class="flex gap-4">
+                <input type="text" id="tickers" placeholder="AAPL, NVDA, TSLA" 
+                       class="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-indigo-500">
+                <button onclick="analyzeWatchlist()" id="analyzeBtn"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-lg transition">
+                    Analyze Watchlist
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Cards Container -->
+        <div id="results" class="space-y-6"></div>
+    </div>
+
+    <script>
+        async function analyzeWatchlist() {
+            const input = document.getElementById('tickers').value;
+            const tickers = input.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            const container = document.getElementById('results');
+            const btn = document.getElementById('analyzeBtn');
+
+            if (tickers.length === 0) return;
+
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+            container.innerHTML = '<div class="text-center text-slate-400 py-8">Fetching price history, implied volatility, and running FinBERT model...</div>';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tickers: tickers })
+                });
+
+                const data = await response.json();
+                container.innerHTML = '';
+
+                data.forEach(item => {
+                    if (item.status === 'error') {
+                        container.innerHTML += `
+                            <div class="bg-red-900/20 border border-red-500/50 p-6 rounded-xl">
+                                <h3 class="text-xl font-bold text-red-400">${item.ticker}</h3>
+                                <p class="text-slate-400 mt-1">${item.message}</p>
+                            </div>`;
+                        return;
+                    }
+
+                    const chartId = `chart-${item.ticker}`;
+
+                    container.innerHTML += `
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md space-y-6">
+                            
+                            <!-- Header Row -->
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h2 class="text-3xl font-bold text-white">${item.ticker}</h2>
+                                    <p class="text-slate-400 text-sm">Current Price: <span class="text-emerald-400 font-semibold">$${item.chart.current_price}</span></p>
+                                </div>
+                                <span class="px-4 py-2 text-sm font-semibold rounded-full bg-slate-700 text-slate-200">
+                                    IV: ${item.iv}% (${item.iv_status})
+                                </span>
+                            </div>
+
+                            <!-- Signal Box -->
+                            <div class="p-4 rounded-lg bg-slate-900 border border-slate-700">
+                                <div class="text-xs uppercase font-semibold text-slate-400">Combined Model Signal</div>
+                                <div class="text-lg font-semibold mt-1 text-white">${item.signal}</div>
+                            </div>
+
+                            <!-- Interactive Chart -->
+                            <div>
+                                <div class="text-xs uppercase font-semibold text-slate-400 mb-2">Historical Price & 30-Day Projection</div>
+                                <div id="${chartId}" class="w-full h-80 rounded-lg bg-slate-900 p-2"></div>
+                            </div>
+
+                            <!-- FinBERT Breakdown -->
+                            <div>
+                                <div class="text-xs uppercase font-semibold text-slate-400 mb-2">FinBERT Sentiment breakdown</div>
+                                <div class="grid grid-cols-3 gap-3 text-center text-sm font-medium">
+                                    <div class="bg-emerald-950/60 text-emerald-300 p-3 rounded-lg border border-emerald-800/60">
+                                        Positive: ${item.sentiment.positive}%
+                                    </div>
+                                    <div class="bg-slate-900 text-slate-300 p-3 rounded-lg border border-slate-700">
+                                        Neutral: ${item.sentiment.neutral}%
+                                    </div>
+                                    <div class="bg-rose-950/60 text-rose-300 p-3 rounded-lg border border-rose-800/60">
+                                        Negative: ${item.sentiment.negative}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+
+                    // Render Plotly Chart
+                    setTimeout(() => {
+                        const historicalTrace = {
+                            x: item.chart.historical_dates,
+                            y: item.chart.historical_prices,
+                            mode: 'lines',
+                            name: 'Historical (6M)',
+                            line: { color: '#3b82f6', width: 2 }
+                        };
+
+                        const forecastTrace = {
+                            x: [item.chart.historical_dates.slice(-1)[0], ...item.chart.forecast_dates],
+                            y: [item.chart.historical_prices.slice(-1)[0], ...item.chart.forecast_prices],
+                            mode: 'lines',
+                            name: 'Model Projection (30D)',
+                            line: { color: '#10b981', width: 2, dash: 'dash' }
+                        };
+
+                        const layout = {
+                            margin: { t: 10, r: 20, l: 40, b: 40 },
+                            paper_bgcolor: 'rgba(0,0,0,0)',
+                            plot_bgcolor: 'rgba(0,0,0,0)',
+                            font: { color: '#94a3b8' },
+                            xaxis: { gridcolor: '#334155' },
+                            yaxis: { gridcolor: '#334155', tickprefix: '$' },
+                            showlegend: true,
+                            legend: { orientation: 'h', y: 1.15 }
+                        };
+
+                        Plotly.newPlot(chartId, [historicalTrace, forecastTrace], layout, { responsive: true });
+                    }, 50);
+                });
+            } catch (e) {
+                container.innerHTML = `<div class="text-red-400 text-center">An error occurred: ${e.message}</div>`;
+            } finally {
+                btn.innerText = "Analyze Watchlist";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
