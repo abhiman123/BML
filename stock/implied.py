@@ -10,27 +10,29 @@ import yfinance as yf
 
 app = Flask(__name__)
 
-# Load FinBERT Model globally when server starts
 print("Loading FinBERT NLP model into memory...")
 tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
 model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
 
 
 def analyze_sentiment(text):
-    """Calculates sentiment probabilities using FinBERT."""
     inputs = tokenizer(text, padding=True, truncation=True, max_length=512, return_tensors="pt")
     outputs = model(**inputs)
     probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
     
+    pos = round(probs[0][0].item() * 100, 1)
+    neg = round(probs[0][1].item() * 100, 1)
+    neu = round(probs[0][2].item() * 100, 1)
+    
     return {
-        "positive": round(probs[0][0].item() * 100, 1),
-        "negative": round(probs[0][1].item() * 100, 1),
-        "neutral": round(probs[0][2].item() * 100, 1)
+        "positive": pos,
+        "negative": neg,
+        "neutral": neu,
+        "confidence": max(pos, neg, neu)
     }
 
 
 def fetch_implied_volatility(ticker_symbol):
-    """Fetches near-the-money implied volatility for nearest expiration."""
     try:
         ticker = yf.Ticker(ticker_symbol)
         expirations = ticker.options
@@ -58,7 +60,6 @@ def fetch_implied_volatility(ticker_symbol):
 
 
 def fetch_text_data(ticker):
-    """Scrapes news text from Yahoo Finance for sentiment analysis."""
     url = f"https://finance.yahoo.com/quote/{ticker}/"
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
@@ -73,7 +74,6 @@ def fetch_text_data(ticker):
 
 
 def evaluate_combined_signal(sentiment, iv):
-    """Generates directional trading signal using sentiment and IV."""
     pos = sentiment['positive'] / 100
     neg = sentiment['negative'] / 100
     
@@ -94,47 +94,32 @@ def evaluate_combined_signal(sentiment, iv):
 
 
 def generate_stock_forecast(ticker_symbol, sentiment=None, iv=None, days_ahead=30):
-    """
-    Generates a multi-factor price projection by combining:
-    1. Short-term price momentum (past 30 days)
-    2. Sentiment directional bias (FinBERT positive vs negative score)
-    3. Implied Volatility (scales the magnitude of projected daily move)
-    """
     try:
         ticker = yf.Ticker(ticker_symbol)
         df = ticker.history(period="6mo")
         if df.empty:
             return None
 
-        # Format historical dates and close prices
         dates = [d.strftime('%Y-%m-%d') for d in df.index]
         prices = [round(p, 2) for p in df['Close'].tolist()]
         current_price = prices[-1]
 
-        # 1. Base short-term historical drift (last 30 trading days)
         recent_prices = prices[-30:] if len(prices) >= 30 else prices
         x = np.arange(len(recent_prices))
         hist_slope, _ = np.polyfit(x, recent_prices, 1)
         hist_daily_return = hist_slope / current_price
 
-        # 2. Sentiment and IV directional scaling
         if sentiment and iv:
             pos_score = sentiment.get("positive", 0) / 100.0
             neg_score = sentiment.get("negative", 0) / 100.0
-            sentiment_bias = pos_score - neg_score  # Positive if bullish, negative if bearish
+            sentiment_bias = pos_score - neg_score
 
-            # Convert annualized IV % into estimated daily move magnitude
             daily_iv = (iv / 100.0) / np.sqrt(252)
-
-            # Sentiment-driven daily drift rate
             sentiment_daily_return = sentiment_bias * daily_iv * 0.4
-
-            # Blend 20% past technical momentum + 80% sentiment/IV forward signal
             blended_daily_return = (0.2 * hist_daily_return) + (0.8 * sentiment_daily_return)
         else:
             blended_daily_return = hist_daily_return
 
-        # 3. Project future price path over 30 days
         last_date = pd.to_datetime(dates[-1])
         future_dates = [(last_date + pd.Timedelta(days=i)).strftime('%Y-%m-%d') for i in range(1, days_ahead + 1)]
 
@@ -181,8 +166,6 @@ def analyze():
         if text:
             sentiment = analyze_sentiment(text[:512])
             signal, iv_status = evaluate_combined_signal(sentiment, iv)
-            
-            # Pass sentiment and IV into forecast function for directional alignment
             chart_data = generate_stock_forecast(ticker, sentiment=sentiment, iv=iv)
 
             if chart_data:

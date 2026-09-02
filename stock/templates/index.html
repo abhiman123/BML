@@ -4,21 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Factor Stock Sentiment & Chart Dashboard</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Plotly.js CDN -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-8">
     <div class="max-w-5xl mx-auto space-y-8">
         
-        <!-- Header -->
         <div>
             <h1 class="text-3xl font-bold text-white">Stock Multi-Factor Analytics & Price Projection</h1>
             <p class="text-slate-400 mt-2">FinBERT News Sentiment + Options Implied Volatility (IV) + Historical & Predicted Trendlines</p>
         </div>
 
-        <!-- Input Bar -->
         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg space-y-4">
             <label for="tickers" class="block font-medium text-slate-300">Enter Ticker Symbols (comma separated)</label>
             <div class="flex gap-4">
@@ -31,7 +27,6 @@
             </div>
         </div>
 
-        <!-- Output Cards Container -->
         <div id="results" class="space-y-6"></div>
     </div>
 
@@ -73,7 +68,6 @@
                     container.innerHTML += `
                         <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md space-y-6">
                             
-                            <!-- Header Row -->
                             <div class="flex justify-between items-center">
                                 <div>
                                     <h2 class="text-3xl font-bold text-white">${item.ticker}</h2>
@@ -84,19 +78,22 @@
                                 </span>
                             </div>
 
-                            <!-- Signal Box -->
-                            <div class="p-4 rounded-lg bg-slate-900 border border-slate-700">
-                                <div class="text-xs uppercase font-semibold text-slate-400">Combined Model Signal</div>
-                                <div class="text-lg font-semibold mt-1 text-white">${item.signal}</div>
+                            <div class="p-4 rounded-lg bg-slate-900 border border-slate-700 flex justify-between items-center">
+                                <div>
+                                    <div class="text-xs uppercase font-semibold text-slate-400">Combined Model Signal</div>
+                                    <div class="text-lg font-semibold mt-1 text-white">${item.signal}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs uppercase font-semibold text-slate-400">Model Confidence</div>
+                                    <div class="text-xl font-bold text-indigo-400">${item.sentiment.confidence}%</div>
+                                </div>
                             </div>
 
-                            <!-- Interactive Chart -->
                             <div>
                                 <div class="text-xs uppercase font-semibold text-slate-400 mb-2">Historical Price & 30-Day Projection</div>
                                 <div id="${chartId}" class="w-full h-80 rounded-lg bg-slate-900 p-2"></div>
                             </div>
 
-                            <!-- FinBERT Breakdown -->
                             <div>
                                 <div class="text-xs uppercase font-semibold text-slate-400 mb-2">FinBERT Sentiment breakdown</div>
                                 <div class="grid grid-cols-3 gap-3 text-center text-sm font-medium">
@@ -110,10 +107,13 @@
                                         Negative: ${item.sentiment.negative}%
                                     </div>
                                 </div>
+                                <div class="mt-3 text-xs text-slate-500 flex justify-between border-t border-slate-700 pt-3">
+                                    <span><strong>Real-Time Target Confidence:</strong> Displays the probability of the most likely sentiment classification based on current news data.</span>
+                                    <span><strong>Model Benchmark:</strong> FinBERT accuracy rated at <strong>97%</strong> on Financial PhraseBank data.</span>
+                                </div>
                             </div>
                         </div>`;
 
-                    // Render Plotly Chart
                     setTimeout(() => {
                         const historicalTrace = {
                             x: item.chart.historical_dates,
