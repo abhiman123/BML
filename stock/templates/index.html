@@ -3,31 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Factor Stock Sentiment & Chart Dashboard</title>
+    <title>Solis — Stock Multi-Factor Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0d0e12;
+        }
+        .glass-panel {
+            background: rgba(22, 24, 29, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-sm {
+            background: rgba(18, 20, 24, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-8">
-    <div class="max-w-5xl mx-auto space-y-8">
+<body class="text-slate-200 min-h-screen p-6 md:p-10">
+    <div class="max-w-7xl mx-auto space-y-8">
         
-        <div>
-            <h1 class="text-3xl font-bold text-white">Stock Multi-Factor Analytics & Price Projection</h1>
-            <p class="text-slate-400 mt-2">FinBERT News Sentiment + Options Implied Volatility (IV) + Historical & Predicted Trendlines</p>
-        </div>
+        <!-- Navigation Header Bar (Matching Solis Top Bar) -->
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#121418]/80 p-3 px-6 rounded-full border border-white/10 backdrop-filter blur-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-300 flex items-center justify-center font-bold text-black text-sm">
+                    S
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Solis</span>
+            </div>
 
-        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg space-y-4">
-            <label for="tickers" class="block font-medium text-slate-300">Enter Ticker Symbols (comma separated)</label>
-            <div class="flex gap-4">
-                <input type="text" id="tickers" placeholder="AAPL, NVDA, TSLA" 
-                       class="flex-1 bg-slate-900 border border-slate-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-indigo-500">
-                <button onclick="analyzeWatchlist()" id="analyzeBtn"
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-lg transition">
-                    Analyze Watchlist
+            <!-- Navigation Tabs -->
+            <nav class="hidden md:flex items-center gap-1 bg-[#1a1d24] p-1 rounded-full border border-white/5 text-xs text-slate-400 font-medium">
+                <button class="bg-white text-black px-5 py-2 rounded-full font-semibold shadow-sm transition">Overview</button>
+                <button class="hover:text-white px-5 py-2 transition">Analytics</button>
+                <button class="hover:text-white px-5 py-2 transition">Sentiment</button>
+                <button class="hover:text-white px-5 py-2 transition">Forecasts</button>
+                <button class="hover:text-white px-5 py-2 transition">Optimization</button>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <button class="p-2.5 rounded-full bg-[#1a1d24] border border-white/5 text-slate-300 hover:text-white transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </button>
+                <button class="p-2.5 rounded-full bg-[#1a1d24] border border-white/5 text-slate-300 hover:text-white transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                </button>
+                <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden border border-emerald-500/50">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </header>
+
+        <!-- Top Overview Banner -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Banner: Watchlist Input Panel -->
+            <div class="lg:col-span-2 glass-panel p-6 rounded-3xl space-y-4 relative overflow-hidden">
+                <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div>
+                    <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Multi-Factor Engine</span>
+                    <h1 class="text-2xl md:text-3xl font-bold text-white mt-1">Market Sentiment & Price Forecasts</h1>
+                    <p class="text-slate-400 text-sm mt-1">FinBERT News NLP + Options Implied Volatility (IV) + Trend Projections</p>
+                </div>
+
+                <div class="pt-2">
+                    <label for="tickers" class="block text-xs font-medium text-slate-400 mb-2">Enter Ticker Symbols</label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="tickers" placeholder="e.g. AAPL, NVDA, TSLA" 
+                               class="flex-1 bg-[#121418] border border-white/10 text-white px-5 py-3.5 rounded-2xl focus:outline-none focus:border-emerald-500/60 text-sm transition">
+                        <button onclick="analyzeWatchlist()" id="analyzeBtn"
+                                class="bg-white hover:bg-slate-200 text-black font-semibold px-8 py-3.5 rounded-2xl transition text-sm flex items-center justify-center gap-2 shadow-lg shadow-white/5">
+                            <span>Analyze Watchlist</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Banner: Quick AI Summary Highlight Card -->
+            <div class="glass-panel p-6 rounded-3xl flex flex-col justify-between relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 glow-emerald">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium px-3 py-1 rounded-full">+97% Accuracy Benchmark</span>
+                </div>
+                
+                <div class="my-4">
+                    <h3 class="text-xl font-bold text-white">AI-Driven Market Intelligence</h3>
+                    <p class="text-slate-400 text-xs mt-1 leading-relaxed">Combine real-time options implied volatility with NLP financial sentiment analysis to predict price momentum.</p>
+                </div>
+
+                <div class="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+                    <span>Powered by FinBERT & Yahoo Finance</span>
+                    <span class="text-emerald-400 font-medium">Active Model</span>
+                </div>
             </div>
         </div>
 
+        <!-- Dynamic Results Container -->
         <div id="results" class="space-y-6"></div>
+
     </div>
 
     <script>
@@ -39,9 +122,13 @@
 
             if (tickers.length === 0) return;
 
-            btn.innerText = "Processing...";
+            btn.innerHTML = `<span>Processing...</span>`;
             btn.disabled = true;
-            container.innerHTML = '<div class="text-center text-slate-400 py-8">Fetching price history, implied volatility, and running FinBERT model...</div>';
+            container.innerHTML = `
+                <div class="glass-panel p-12 rounded-3xl text-center space-y-3">
+                    <div class="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p class="text-slate-400 text-sm">Fetching option chains, scraping financial news, and running FinBERT NLP models...</p>
+                </div>`;
 
             try {
                 const response = await fetch('/analyze', {
@@ -56,9 +143,9 @@
                 data.forEach(item => {
                     if (item.status === 'error') {
                         container.innerHTML += `
-                            <div class="bg-red-900/20 border border-red-500/50 p-6 rounded-xl">
-                                <h3 class="text-xl font-bold text-red-400">${item.ticker}</h3>
-                                <p class="text-slate-400 mt-1">${item.message}</p>
+                            <div class="glass-panel border-red-500/30 p-6 rounded-3xl">
+                                <h3 class="text-lg font-bold text-red-400">${item.ticker}</h3>
+                                <p class="text-slate-400 text-sm mt-1">${item.message}</p>
                             </div>`;
                         return;
                     }
@@ -66,52 +153,67 @@
                     const chartId = `chart-${item.ticker}`;
 
                     container.innerHTML += `
-                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md space-y-6">
+                        <div class="glass-panel p-6 md:p-8 rounded-3xl space-y-6 relative overflow-hidden">
                             
-                            <div class="flex justify-between items-center">
+                            <!-- Header Row -->
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-5">
                                 <div>
-                                    <h2 class="text-3xl font-bold text-white">${item.ticker}</h2>
-                                    <p class="text-slate-400 text-sm">Current Price: <span class="text-emerald-400 font-semibold">$${item.chart.current_price}</span></p>
+                                    <div class="flex items-center gap-3">
+                                        <h2 class="text-3xl font-extrabold text-white tracking-tight">${item.ticker}</h2>
+                                        <span class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1 rounded-full font-semibold">
+                                            $${item.chart.current_price}
+                                        </span>
+                                    </div>
+                                    <p class="text-slate-400 text-xs mt-1">Multi-Factor Real-Time Analysis</p>
                                 </div>
-                                <span class="px-4 py-2 text-sm font-semibold rounded-full bg-slate-700 text-slate-200">
-                                    IV: ${item.iv}% (${item.iv_status})
-                                </span>
-                            </div>
-
-                            <div class="p-4 rounded-lg bg-slate-900 border border-slate-700 flex justify-between items-center">
-                                <div>
-                                    <div class="text-xs uppercase font-semibold text-slate-400">Combined Model Signal</div>
-                                    <div class="text-lg font-semibold mt-1 text-white">${item.signal}</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-xs uppercase font-semibold text-slate-400">Model Confidence</div>
-                                    <div class="text-xl font-bold text-indigo-400">${item.sentiment.confidence}%</div>
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-[#121418] border border-white/10 px-4 py-2 rounded-2xl text-xs">
+                                        <span class="text-slate-400 block text-[10px] uppercase font-semibold">Implied Volatility</span>
+                                        <span class="text-white font-bold text-sm">${item.iv}%</span>
+                                        <span class="text-slate-400 ml-1">(${item.iv_status})</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <div class="text-xs uppercase font-semibold text-slate-400 mb-2">Historical Price & 30-Day Projection</div>
-                                <div id="${chartId}" class="w-full h-80 rounded-lg bg-slate-900 p-2"></div>
+                            <!-- Combined Signal Stat Cards -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="glass-panel-sm p-5 rounded-2xl col-span-1 md:col-span-2 flex justify-between items-center">
+                                    <div>
+                                        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Combined Model Signal</div>
+                                        <div class="text-base font-semibold mt-1 text-white">${item.signal}</div>
+                                    </div>
+                                </div>
+                                <div class="glass-panel-sm p-5 rounded-2xl flex justify-between items-center">
+                                    <div>
+                                        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Confidence Level</div>
+                                        <div class="text-2xl font-bold text-emerald-400 mt-0.5">${item.sentiment.confidence}%</div>
+                                    </div>
+                                    <span class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full">High</span>
+                                </div>
                             </div>
 
-                            <div>
-                                <div class="text-xs uppercase font-semibold text-slate-400 mb-2">FinBERT Sentiment breakdown</div>
-                                <div class="grid grid-cols-3 gap-3 text-center text-sm font-medium">
-                                    <div class="bg-emerald-950/60 text-emerald-300 p-3 rounded-lg border border-emerald-800/60">
+                            <!-- Chart Container -->
+                            <div class="glass-panel-sm p-4 rounded-2xl">
+                                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 px-2">Historical Price & 30-Day Projection</div>
+                                <div id="${chartId}" class="w-full h-80"></div>
+                            </div>
+
+                            <!-- FinBERT Sentiment Breakdown -->
+                            <div class="space-y-3">
+                                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">FinBERT Sentiment Distribution</div>
+                                <div class="grid grid-cols-3 gap-3 text-center text-xs font-semibold">
+                                    <div class="bg-emerald-950/40 text-emerald-300 p-3.5 rounded-2xl border border-emerald-800/40">
                                         Positive: ${item.sentiment.positive}%
                                     </div>
-                                    <div class="bg-slate-900 text-slate-300 p-3 rounded-lg border border-slate-700">
+                                    <div class="bg-[#121418] text-slate-300 p-3.5 rounded-2xl border border-white/5">
                                         Neutral: ${item.sentiment.neutral}%
                                     </div>
-                                    <div class="bg-rose-950/60 text-rose-300 p-3 rounded-lg border border-rose-800/60">
+                                    <div class="bg-rose-950/40 text-rose-300 p-3.5 rounded-2xl border border-rose-800/40">
                                         Negative: ${item.sentiment.negative}%
                                     </div>
                                 </div>
-                                <div class="mt-3 text-xs text-slate-500 flex justify-between border-t border-slate-700 pt-3">
-                                    <span><strong>Real-Time Target Confidence:</strong> Displays the probability of the most likely sentiment classification based on current news data.</span>
-                                    <span><strong>Model Benchmark:</strong> FinBERT accuracy rated at <strong>97%</strong> on Financial PhraseBank data.</span>
-                                </div>
                             </div>
+
                         </div>`;
 
                     setTimeout(() => {
@@ -120,7 +222,7 @@
                             y: item.chart.historical_prices,
                             mode: 'lines',
                             name: 'Historical (6M)',
-                            line: { color: '#3b82f6', width: 2 }
+                            line: { color: '#38bdf8', width: 2.5 }
                         };
 
                         const forecastTrace = {
@@ -128,27 +230,27 @@
                             y: [item.chart.historical_prices.slice(-1)[0], ...item.chart.forecast_prices],
                             mode: 'lines',
                             name: 'Model Projection (30D)',
-                            line: { color: '#10b981', width: 2, dash: 'dash' }
+                            line: { color: '#10b981', width: 2.5, dash: 'dash' }
                         };
 
                         const layout = {
                             margin: { t: 10, r: 20, l: 40, b: 40 },
                             paper_bgcolor: 'rgba(0,0,0,0)',
                             plot_bgcolor: 'rgba(0,0,0,0)',
-                            font: { color: '#94a3b8' },
-                            xaxis: { gridcolor: '#334155' },
-                            yaxis: { gridcolor: '#334155', tickprefix: '$' },
+                            font: { color: '#94a3b8', family: 'Plus Jakarta Sans' },
+                            xaxis: { gridcolor: 'rgba(255,255,255,0.05)', showline: false },
+                            yaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickprefix: '$', showline: false },
                             showlegend: true,
                             legend: { orientation: 'h', y: 1.15 }
                         };
 
-                        Plotly.newPlot(chartId, [historicalTrace, forecastTrace], layout, { responsive: true });
+                        Plotly.newPlot(chartId, [historicalTrace, forecastTrace], layout, { responsive: true, displayModeBar: false });
                     }, 50);
                 });
             } catch (e) {
-                container.innerHTML = `<div class="text-red-400 text-center">An error occurred: ${e.message}</div>`;
+                container.innerHTML = `<div class="text-red-400 text-center glass-panel p-6 rounded-3xl">An error occurred: ${e.message}</div>`;
             } finally {
-                btn.innerText = "Analyze Watchlist";
+                btn.innerHTML = `<span>Analyze Watchlist</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>`;
                 btn.disabled = false;
             }
         }

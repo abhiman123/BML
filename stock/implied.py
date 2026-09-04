@@ -42,7 +42,10 @@ def fetch_implied_volatility(ticker_symbol):
         nearest_exp = expirations[0]
         opt_chain = ticker.option_chain(nearest_exp)
         calls = opt_chain.calls
-        current_price = ticker.fast_info['lastPrice']
+        
+        current_price = ticker.fast_info.get('lastPrice')
+        if current_price is None or np.isnan(current_price):
+            return None
         
         atm_calls = calls[
             (calls['strike'] >= current_price * 0.95) & 
@@ -54,7 +57,10 @@ def fetch_implied_volatility(ticker_symbol):
         else:
             avg_iv = atm_calls['impliedVolatility'].mean()
             
-        return round(avg_iv * 100, 2)
+        if avg_iv is None or np.isnan(avg_iv):
+            return None
+
+        return round(float(avg_iv) * 100, 2)
     except Exception:
         return None
 
@@ -80,15 +86,15 @@ def evaluate_combined_signal(sentiment, iv):
     iv_status = "High Volatility Expected" if iv and iv > 40 else "Normal/Low Volatility"
     
     if pos > 0.55 and iv and iv > 40:
-        signal = "🟢 High-Conviction Bullish (High Sentiment + Expected Volatility)"
+        signal = " High-Conviction Bullish (High Sentiment + Expected Volatility)"
     elif pos > 0.55:
-        signal = "🟢 Mildly Bullish (Positive Sentiment, Low Volatility)"
+        signal = " Mildly Bullish (Positive Sentiment, Low Volatility)"
     elif neg > 0.45 and iv and iv > 40:
-        signal = "🔴 High-Conviction Bearish (Negative Sentiment + Expected Volatility)"
+        signal = " High-Conviction Bearish (Negative Sentiment + Expected Volatility)"
     elif neg > 0.45:
-        signal = "🔴 Mildly Bearish (Negative Sentiment, Low Volatility)"
+        signal = " Mildly Bearish (Negative Sentiment, Low Volatility)"
     else:
-        signal = "🟡 Neutral / Wait for Catalyst"
+        signal = " Neutral / Wait for Catalyst"
         
     return signal, iv_status
 
@@ -100,25 +106,40 @@ def generate_stock_forecast(ticker_symbol, sentiment=None, iv=None, days_ahead=3
         if df.empty:
             return None
 
+        df = df.dropna(subset=['Close'])
+        if df.empty:
+            return None
+
         dates = [d.strftime('%Y-%m-%d') for d in df.index]
-        prices = [round(p, 2) for p in df['Close'].tolist()]
+        prices = [round(float(p), 2) for p in df['Close'].tolist() if not np.isnan(p)]
+        
+        if not prices:
+            return None
+
         current_price = prices[-1]
 
         recent_prices = prices[-30:] if len(prices) >= 30 else prices
         x = np.arange(len(recent_prices))
+        
         hist_slope, _ = np.polyfit(x, recent_prices, 1)
-        hist_daily_return = hist_slope / current_price
+        hist_daily_return = hist_slope / current_price if current_price else 0.0
 
-        if sentiment and iv:
+        if np.isnan(hist_daily_return):
+            hist_daily_return = 0.0
+
+        if sentiment and iv is not None:
             pos_score = sentiment.get("positive", 0) / 100.0
             neg_score = sentiment.get("negative", 0) / 100.0
             sentiment_bias = pos_score - neg_score
 
-            daily_iv = (iv / 100.0) / np.sqrt(252)
+            daily_iv = (iv / 100.0) / np.sqrt(252) if not np.isnan(iv) else 0.0
             sentiment_daily_return = sentiment_bias * daily_iv * 0.4
             blended_daily_return = (0.2 * hist_daily_return) + (0.8 * sentiment_daily_return)
         else:
             blended_daily_return = hist_daily_return
+
+        if np.isnan(blended_daily_return):
+            blended_daily_return = 0.0
 
         last_date = pd.to_datetime(dates[-1])
         future_dates = [(last_date + pd.Timedelta(days=i)).strftime('%Y-%m-%d') for i in range(1, days_ahead + 1)]
@@ -127,7 +148,7 @@ def generate_stock_forecast(ticker_symbol, sentiment=None, iv=None, days_ahead=3
         simulated_price = current_price
         for _ in range(days_ahead):
             simulated_price *= (1 + blended_daily_return)
-            predicted_prices.append(round(simulated_price, 2))
+            predicted_prices.append(round(float(simulated_price), 2))
 
         return {
             "historical_dates": dates,
